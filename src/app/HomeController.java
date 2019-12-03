@@ -81,14 +81,14 @@ public class HomeController {
     private Statement statement;
     private Connection connection;
     private List<Product> products = new ArrayList<>();
-    private List<BasketItem> basketItems =  new ArrayList<>();
+    private List<BasketItem> basketItems = new ArrayList<>();
     private List<OrderStatus> orderStatus = new ArrayList<>();
     private Product selectedProduct;
     private BasketItem selectedBasketItem;
     private User user;
 
     void initData(User user,
-            Connection connection) throws SQLException {
+                  Connection connection) throws SQLException {
         this.user = user;
         welcomeUserLabel.setText(String.format("Welcome %s %s", user.getFirstName(), user.getLastName()));
         this.statement = connection.createStatement();
@@ -129,7 +129,7 @@ public class HomeController {
         basketTableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
                 selectedBasketItem = newSelection;
-                editProdiuctLabel.setText("Edit Product - "+newSelection.getProductName());
+                editProdiuctLabel.setText("Edit Product - " + newSelection.getProductName());
                 quantityTextField.setText(Integer.toString(newSelection.getQuantity()));
                 sizeCodeTextField.setText(Integer.toString(newSelection.getSizeCode()));
                 FormCodeTextField.setText(Integer.toString(newSelection.getFormCode()));
@@ -367,6 +367,7 @@ public class HomeController {
 
     @FXML
     void onCalculateTotalSpending() {
+
         Runnable task = () -> {
             try {
                 CallableStatement callableStatement = connection.prepareCall("{? = call TOT_PURCH_SP(?)}");
@@ -386,6 +387,7 @@ public class HomeController {
             }
         };
         new Thread(task).start();
+
     }
 
     @FXML
@@ -453,38 +455,42 @@ public class HomeController {
 
     @FXML
     void onSaveBasket() {
-        Runnable task = () -> {
-            try {
-                CallableStatement callableStatement = connection.prepareCall("{call proced_create_new_basket(?, ?)}");
-                callableStatement.setInt(1, user.getId());
-                callableStatement.registerOutParameter(2, Types.NUMERIC);
-                callableStatement.execute();
-                int idBasket = callableStatement.getInt(2);
-
-                for (BasketItem i: basketItems ) {
-                    callableStatement = connection.prepareCall("{call Basket_Add_SP(?, ?, ?, ?, ?, ?)}");
-                    callableStatement.setInt(1, i.getProduct().getId());
-                    callableStatement.setDouble(2, i.getPrice());
-                    callableStatement.setInt(3, i.getQuantity());
-                    callableStatement.setInt(4, idBasket);
-                    callableStatement.setInt(5, i.getSizeCode());
-                    callableStatement.setInt(6, i.getFormCode());
+        if (basketItems.size() == 0)
+            InfoTextField.setText("No product to basket");
+        else {
+            Runnable task = () -> {
+                try {
+                    CallableStatement callableStatement = connection.prepareCall("{call proced_create_new_basket(?, ?)}");
+                    callableStatement.setInt(1, user.getId());
+                    callableStatement.registerOutParameter(2, Types.NUMERIC);
                     callableStatement.execute();
-                }
-                Platform.runLater(() -> {
-                        InfoTextField.setText("Basket "+idBasket+" is created and added items.");
+                    int idBasket = callableStatement.getInt(2);
 
-                });
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        };
-        new Thread(task).start();
+                    for (BasketItem i : basketItems) {
+                        callableStatement = connection.prepareCall("{call Basket_Add_SP(?, ?, ?, ?, ?, ?)}");
+                        callableStatement.setInt(1, i.getProduct().getId());
+                        callableStatement.setDouble(2, i.getPrice());
+                        callableStatement.setInt(3, i.getQuantity());
+                        callableStatement.setInt(4, idBasket);
+                        callableStatement.setInt(5, i.getSizeCode());
+                        callableStatement.setInt(6, i.getFormCode());
+                        callableStatement.execute();
+                    }
+                    Platform.runLater(() -> {
+                        InfoTextField.setText("Basket " + idBasket + " is created and added items.");
+
+                    });
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            };
+            new Thread(task).start();
+        }
     }
 
     @FXML
     void onSaveChange() {
-        Runnable task =()->{
+        Runnable task = () -> {
             try {
                 BasketItem bi = basketItems.get(basketItems.indexOf(selectedBasketItem));
                 bi.setQuantity(Integer.parseInt(quantityTextField.getText()));
@@ -492,7 +498,7 @@ public class HomeController {
                 bi.setFormCode(Integer.parseInt(FormCodeTextField.getText()));
                 basketTableView.setItems(null);
                 Platform.runLater(this::updateBasketItemTableVies);
-            }catch (Exception ex){
+            } catch (Exception ex) {
                 InfoTextField.setText("There is no selected basket item.");
 //                ex.printStackTrace();
             }
